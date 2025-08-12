@@ -34,9 +34,8 @@ if st.session_state.logged_in:
         show_main_page3()
     elif st.session_state.username == "s":
         siyo()
-    elif st.session_state.username == "c":
-        run_stock_forecast_app()
     else:
         st.error("このユーザーには対応するページがありません")
 else:
     login()
+
