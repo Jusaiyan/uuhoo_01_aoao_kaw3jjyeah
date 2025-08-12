@@ -3,3 +3,7 @@ pandas
 yfinance
 datetime
 python-dateutil
+plotly
+scikit-learn
+tensorflow
+numpy
