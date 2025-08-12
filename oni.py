@@ -122,6 +122,8 @@ def show_main_page3():
             df_t["ema_dev_pct"] = (df_t["AdjClose"] - df_t["EMA"]) / df_t["EMA"] * 100.0
             df_t["pivot_high"] = df_t["High"].rolling(window=pivot_lookback, min_periods=1).max()
             df_t["vol20"] = df_t["Volume"].rolling(window=20, min_periods=1).mean()
+            df_t["vol5"] = df_t["Volume"].rolling(window=5, min_periods=1).mean()
+
             df_t["below_ema"] = df_t["AdjClose"] < df_t["EMA"]
             df_t["touch_or_break"] = False
 
@@ -140,8 +142,8 @@ def show_main_page3():
             )
             df_t["pivot_high_shift"] = df_t["pivot_high"].shift(1)
             df_t["pivot_break"] = df_t["AdjClose"] > df_t["pivot_high_shift"]
-            df_t["volume_spike"] = df_t["Volume"] > (volume_multiplier * df_t["vol20"])
-            df_t["buy_signal"] = df_t["rebound_start"] & df_t["pivot_break"] & df_t["volume_spike"]
+
+            df_t["buy_signal"] = df_t["rebound_start"] & df_t["pivot_break"]
 
             df_t["max_gain_within_testdays_pred"] = np.nan
             for i in range(len(df_t)):
@@ -155,49 +157,33 @@ def show_main_page3():
                         max_gain = (max_price - start_price) / start_price * 100.0
                         df_t.iat[i, df_t.columns.get_loc("max_gain_within_testdays_pred")] = max_gain
 
-            if df_t["buy_signal"].iat[-1]:
-                signal_row = df_t.iloc[-1]
-                ema_dev_ok = (signal_row["ema_dev_pct"] >= ema_dev_min) and (signal_row["ema_dev_pct"] <= ema_dev_max)
+            def add_result(row, sig_date):
+                ema_dev_ok = (row["ema_dev_pct"] >= ema_dev_min) and (row["ema_dev_pct"] <= ema_dev_max)
                 if ema_dev_ok:
                     period_start_price = df_t["AdjClose"].iat[0]
                     period_end_price = df_t["AdjClose"].iat[-1]
                     pct_change_period = (period_end_price - period_start_price) / period_start_price * 100.0
                     results.append({
                         "ticker": ticker.replace(".T", ""),
-                        "signal_date": df_t.index[-1].strftime("%Y-%m-%d"),
+                        "signal_date": sig_date,
                         "last_close": float(period_end_price),
                         "period_pct_change": float(pct_change_period),
-                        "ema21": float(signal_row["EMA"]),
-                        "ema_dev_pct": float(signal_row["ema_dev_pct"]),
-                        "pivot_high": float(signal_row["pivot_high_shift"]) if not np.isnan(signal_row["pivot_high_shift"]) else None,
-                        "volume_today": int(signal_row["Volume"]),
-                        "vol20": float(signal_row["vol20"]),
-                        "volume_spike": bool(signal_row["volume_spike"]),
-                        "max_gain_2w_pred_pct": float(signal_row["max_gain_within_testdays_pred"]) if not np.isnan(signal_row["max_gain_within_testdays_pred"]) else np.nan,
+                        "ema21": float(row["EMA"]),
+                        "ema_dev_pct": float(row["ema_dev_pct"]),
+                        "pivot_high": float(row["pivot_high_shift"]) if not np.isnan(row["pivot_high_shift"]) else None,
+                        "volume_today": int(row["Volume"]),
+                        "vol20": float(row["vol20"]),
+                        "vol5": float(row["vol5"]),
+                        "volume_increase_ratio": float(row["vol5"] / row["vol20"]) if row["vol20"] != 0 else None,
+                        "max_gain_2w_pred_pct": float(row["max_gain_within_testdays_pred"]) if not np.isnan(row["max_gain_within_testdays_pred"]) else np.nan,
                         "buy_signal": True
                     })
+
+            if df_t["buy_signal"].iat[-1]:
+                add_result(df_t.iloc[-1], df_t.index[-1].strftime("%Y-%m-%d"))
             elif df_t["buy_signal"].any():
                 last_sig_idx = df_t.index[df_t["buy_signal"]].max()
-                last_sig_row = df_t.loc[last_sig_idx]
-                ema_dev_ok = (last_sig_row["ema_dev_pct"] >= ema_dev_min) and (last_sig_row["ema_dev_pct"] <= ema_dev_max)
-                if ema_dev_ok:
-                    period_start_price = df_t["AdjClose"].iat[0]
-                    period_end_price = df_t["AdjClose"].iat[-1]
-                    pct_change_period = (period_end_price - period_start_price) / period_start_price * 100.0
-                    results.append({
-                        "ticker": ticker.replace(".T", ""),
-                        "signal_date": last_sig_idx.strftime("%Y-%m-%d") + " (過去シグナル)",
-                        "last_close": float(period_end_price),
-                        "period_pct_change": float(pct_change_period),
-                        "ema21": float(last_sig_row["EMA"]),
-                        "ema_dev_pct": float(last_sig_row["ema_dev_pct"]),
-                        "pivot_high": float(last_sig_row["pivot_high_shift"]) if not np.isnan(last_sig_row["pivot_high_shift"]) else None,
-                        "volume_today": int(last_sig_row["Volume"]),
-                        "vol20": float(last_sig_row["vol20"]),
-                        "volume_spike": bool(last_sig_row["volume_spike"]),
-                        "max_gain_2w_pred_pct": float(last_sig_row["max_gain_within_testdays_pred"]) if not np.isnan(last_sig_row["max_gain_within_testdays_pred"]) else np.nan,
-                        "buy_signal": True
-                    })
+                add_result(df_t.loc[last_sig_idx], last_sig_idx.strftime("%Y-%m-%d") + " (過去シグナル)")
 
         except Exception:
             continue
@@ -218,8 +204,9 @@ def show_main_page3():
     out_df["ema_dev_pct"] = out_df["ema_dev_pct"].map(lambda x: f"{x:.2f}%" if pd.notnull(x) else "-")
     out_df["pivot_high"] = out_df["pivot_high"].map(lambda x: f"{x:,.0f} 円" if pd.notnull(x) else "-")
     out_df["vol20"] = out_df["vol20"].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "-")
+    out_df["vol5"] = out_df["vol5"].map(lambda x: f"{x:,.0f}" if pd.notnull(x) else "-")
     out_df["volume_today"] = out_df["volume_today"].map(lambda x: f"{x:,.0f}")
-    out_df["volume_spike"] = out_df["volume_spike"].map(lambda v: "Yes" if v else "No")
+    out_df["volume_increase_ratio"] = out_df["volume_increase_ratio"].map(lambda v: f"{v*100:.2f}%" if pd.notnull(v) else "-")
     out_df["max_gain_2w_pred_pct"] = out_df["max_gain_2w_pred_pct"].map(lambda x: f"{x:.2f}%" if pd.notnull(x) else "-")
 
     out_df["想定購入額(1株)"] = out_df["last_close"].apply(lambda x: x.replace(" 円","").replace(",","")).astype(float)
@@ -229,7 +216,8 @@ def show_main_page3():
 
     display_cols = [
         "ticker", "signal_date", "last_close", "想定購入額(1株)", "想定購入額(100株)",
-        "period_pct_change", "ema21", "ema_dev_pct", "pivot_high", "volume_today", "vol20", "volume_spike",
+        "period_pct_change", "ema21", "ema_dev_pct", "pivot_high",
+        "volume_today", "vol20", "vol5", "volume_increase_ratio",
         "max_gain_2w_pred_pct"
     ]
     display_df = out_df[display_cols].rename(columns={
@@ -242,7 +230,8 @@ def show_main_page3():
         "pivot_high": "ピボット高値(直前)",
         "volume_today": "当日出来高",
         "vol20": "出来高20日平均",
-        "volume_spike": "出来高急増?",
+        "vol5": "出来高5日平均",
+        "volume_increase_ratio": "出来高増加率(5日÷20日)",
         "max_gain_2w_pred_pct": "2週間最大騰落率（予測）"
     })
 
@@ -258,14 +247,13 @@ def show_main_page3():
         **対象期間騰落率**: 指定期間（開始日→終了日）の騰落率（%）  
         **EMA21**: 計算された EMA (期間 = sidebar で指定) の値  
         **ピボット高値(直前)**: ピボットとして計算した過去 N 日の最高値（直前の値）  
-        **当日出来高 / 出来高20日平均**: 出来高の目安（当日と直近平均）  
-        **出来高急増?**: 当日出来高が (volume_multiplier × 20日平均) を超えているか（Yes/No）  
-        **2週間最大騰落率（予測）**: シグナル日に続く test_days (sidebar で指定) 日以内に記録された最高値を起点に算出した最大上昇率（過去実績ベースのシミュレーション値。将来の保証ではありません）
+        **当日出来高 / 出来高20日平均 / 出来高5日平均**: 出来高の目安（当日と直近平均）  
+        **出来高増加率(5日÷20日)**: 直近5日平均出来高 ÷ 直近20日平均出来高 の比率（%表示）  
+        **2週間最大騰落率（予測）**: シグナル日に続く test_days (sidebar で指定) 日以内に記録された最高値を起点に算出した最大上昇率（過去実績ベースのシミュレーション値。将来の保証ではありません）  
         **EMA乖離率(%)**: 終値がEMAからどれだけ離れているか（%）
         """)
 
     st.success("解析完了。上の表は現物購入の参考になります。購入前に板・板寄せ・流動性・出来高・指値戦略を必ず確認してください")
-
 # Streamlit 実行用エントリ (このファイルを直接 run する時)
-#if __name__ == "__main__":
-#    show_main_page3()
+if __name__ == "__main__":
+    show_main_page3()
