@@ -26,7 +26,7 @@ def show_main_page3():
     # --- ソート方法選択 ---
     sort_option = st.selectbox(
         "並び替え方法を選択",
-        ["騰落率降順", "シグナル日最新順"]
+        ["騰落率降順", "シグナル日最新順", "2週間最大騰落率（予測）降順"]  # ★追加
     )
 
     # --- スクリーニングパラメータ ---
@@ -208,6 +208,8 @@ def show_main_page3():
     elif sort_option == "シグナル日最新順":
         out_df["signal_date_sort"] = pd.to_datetime(out_df["signal_date"].str.replace(" (過去シグナル)", "", regex=False), errors="coerce")
         out_df = out_df.sort_values("signal_date_sort", ascending=False).drop(columns=["signal_date_sort"])
+    elif sort_option == "2週間最大騰落率（予測）降順":  # ★追加
+        out_df = out_df.sort_values("max_gain_2w_pred_pct", ascending=False)
 
     out_df = out_df.reset_index(drop=True).head(int(top_n))
 
@@ -268,6 +270,8 @@ def show_main_page3():
         """)
 
     st.success("解析完了。上の表は現物購入の参考になります。購入前に板・板寄せ・流動性・出来高・指値戦略を必ず確認してください")
-# Streamlit 実行用エントリ (このファイルを直接 run する時)
-if __name__ == "__main__":
-    show_main_page3()
+
+
+# Streamlit 実行用エントリ
+#if __name__ == "__main__":
+#    show_main_page3()
