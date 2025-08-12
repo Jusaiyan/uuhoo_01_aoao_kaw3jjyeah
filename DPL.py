@@ -1,13 +1,13 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import yfinance as yf
-import datetime
-from dateutil.relativedelta import relativedelta
-import plotly.graph_objs as go
-from sklearn.preprocessing import MinMaxScaler
-
 def run_stock_forecast_app():
+    import streamlit as st
+    import pandas as pd
+    import numpy as np
+    import yfinance as yf
+    import datetime
+    from dateutil.relativedelta import relativedelta
+    import plotly.graph_objs as go
+    from sklearn.preprocessing import MinMaxScaler
+    
     st.set_page_config(page_title="銘柄チャート予測（1か月）", layout="wide")
 
     st.title("チャート予測 — 過去データから1か月先を予測")
@@ -105,5 +105,5 @@ def run_stock_forecast_app():
 
     st.info("※本予測は参考値です。投資判断は自己責任でお願いします。")
 
-#if __name__ == "__main__":
-#    run_stock_forecast_app()
+if __name__ == "__main__":
+    run_stock_forecast_app()
