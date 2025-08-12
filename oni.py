@@ -21,7 +21,13 @@ def show_main_page3():
     with col2:
         B = st.date_input("終了日 (YYYY-MM-DD)", value=today)
 
-    top_n = st.number_input("上位何件を表示するか (騰落率降順)", min_value=1, max_value=500, value=30, step=1)
+    top_n = st.number_input("上位何件を表示するか", min_value=1, max_value=500, value=30, step=1)
+
+    # --- ソート方法選択 ---
+    sort_option = st.selectbox(
+        "並び替え方法を選択",
+        ["騰落率降順", "シグナル日最新順"]
+    )
 
     # --- スクリーニングパラメータ ---
     st.sidebar.header("スクリーニング パラメータ")
@@ -195,9 +201,17 @@ def show_main_page3():
         return
 
     out_df = pd.DataFrame(results)
-    out_df = out_df.sort_values("period_pct_change", ascending=False).reset_index(drop=True)
-    out_df = out_df.head(int(top_n))
 
+    # --- 並び替え ---
+    if sort_option == "騰落率降順":
+        out_df = out_df.sort_values("period_pct_change", ascending=False)
+    elif sort_option == "シグナル日最新順":
+        out_df["signal_date_sort"] = pd.to_datetime(out_df["signal_date"].str.replace(" (過去シグナル)", "", regex=False), errors="coerce")
+        out_df = out_df.sort_values("signal_date_sort", ascending=False).drop(columns=["signal_date_sort"])
+
+    out_df = out_df.reset_index(drop=True).head(int(top_n))
+
+    # --- 表示整形 ---
     out_df["period_pct_change"] = out_df["period_pct_change"].map(lambda x: f"{x:.2f}%")
     out_df["last_close"] = out_df["last_close"].map(lambda x: f"{x:,.0f} 円" if x >= 1 else f"{x:.2f}")
     out_df["ema21"] = out_df["ema21"].map(lambda x: f"{x:,.0f} 円" if pd.notnull(x) else "-")
