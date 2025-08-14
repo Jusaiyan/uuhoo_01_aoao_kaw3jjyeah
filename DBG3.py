@@ -4,8 +4,8 @@ import sqlite3
 from itertools import islice
 
 # --- 設定値 ---
-target_start_date = "2025-07-01"
-target_end_date = "2025-08-01"
+target_start_date = "2024-07-01"
+target_end_date = "2024-07-31"
 chunk_size = 200
 
 # --- データ取得 ---
@@ -35,17 +35,20 @@ for chunk in chunked(tickers, chunk_size):
     data_chunks.append(df)
 
 data = pd.concat(data_chunks, axis=1)
-
+#カウント
+present_tickers = data.columns.levels[1].unique().tolist()
+num_tickers = len(present_tickers)
+print(f"yfinanceから{num_tickers}銘柄のデータを取得しました。")
 # --- DataFrame整形 ---
 # マルチインデックスの整形
 data.columns = data.columns.swaplevel(0, 1)
 data = data.stack(level=0, future_stack=True).reset_index()
 data.rename(columns={'level_1': 'Ticker'}, inplace=True)
 
-# ここから追加 ----------------------------------
+
 # Date列をYYYY-MM-DD形式に変換
 data['Date'] = pd.to_datetime(data['Date']).dt.strftime('%Y-%m-%d')
-# -----------------------------------------------
+
 
 # 列名をSQL安全な形に変換（スペースや記号をアンダースコアに）
 data.columns = [c.replace(" ", "_").replace("-", "_") for c in data.columns]
