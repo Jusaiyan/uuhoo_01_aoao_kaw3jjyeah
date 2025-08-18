@@ -10,6 +10,7 @@ def show_main_page3():
     st.set_page_config(page_title="成長株 初動スクリーニング", layout="wide")
 
     today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
     one_month_ago = today - relativedelta(months=1)
 
     st.title("成長株 初動サイン スクリーニング（現物取引用）")
@@ -19,7 +20,7 @@ def show_main_page3():
     with col1:
         A = st.date_input("開始日 (YYYY-MM-DD)", value=one_month_ago)
     with col2:
-        B = st.date_input("終了日 (YYYY-MM-DD)", value=today)
+        B = st.date_input("終了日 (YYYY-MM-DD)", value=tomorrow)
 
     top_n = st.number_input("上位何件を表示するか", min_value=1, max_value=500, value=30, step=1)
 
@@ -275,3 +276,4 @@ def show_main_page3():
 # Streamlit 実行用エントリ
 #if __name__ == "__main__":
 #    show_main_page3()
+
